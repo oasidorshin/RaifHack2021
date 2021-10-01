@@ -21,6 +21,7 @@ def preprocess_data(train, test, **kwargs):
         clean_floor_num: clear floor column and transform to numerical
         clean_region_city: clean up similar/same region and city names
         only_test_cities: only cities present in test for train data
+        encode_cat: label-encode categorical columns
 
     Returns:
         (train, test, num_columns, cat_columns, target),
@@ -84,34 +85,36 @@ def preprocess_data(train, test, **kwargs):
         train = train[train['price_type'] == 1]
 
     if 'clean_floor_num' in kwargs:
-        train, test = clear_floor_num(train), clear_floor_num(test)
+        train, test = clean_floor_num(train), clean_floor_num(test)
 
     if 'clean_region_city' in kwargs:
-        pass  # TODO
+        train, test = clean_region_city(train), clean_region_city(test)
 
     # This needs to be last
     if 'only_test_cities' in kwargs:
         train = get_cities_in_test(train, test)
 
-    # Label encoding for categorical columns
-    for column in cat_columns:
-        le = LabelEncoder()
-        le.fit(pd.concat([train[column], test[column]]))
-        train[column] = le.transform(train[column]).astype(int)
-        test[column] = le.transform(test[column]).astype(int)
+    if 'encode_categorical' in kwargs:
+        # Label encoding for categorical columns
+        for column in cat_columns:
+            le = LabelEncoder()
+            le.fit(pd.concat([train[column], test[column]]))
+            train[column] = le.transform(train[column]).astype(int)
+            test[column] = le.transform(test[column]).astype(int)
 
     for column in num_columns:
         train[column] = train[column].astype(float)
         test[column] = test[column].astype(float)
 
     # Type check for everything
+    if 'encode_categorical' in kwargs:
+        for column in cat_columns:
+            assert train[column].dtype == 'int', (column, train[column].dtype)
+            assert test[column].dtype == 'int', (column, test[column].dtype)
+
     for column in num_columns:
         assert train[column].dtype == 'float', (column, train[column].dtype)
         assert test[column].dtype == 'float', (column, test[column].dtype)
-
-    for column in cat_columns:
-        assert train[column].dtype == 'int', (column, train[column].dtype)
-        assert test[column].dtype == 'int', (column, test[column].dtype)
 
     return train, test, num_columns, cat_columns, target
 
@@ -142,7 +145,50 @@ def cluster(train, test, eps):
     return train, test
 
 
-def clear_floor_num(data):
+def clean_region_city(df):
+    """
+    Author:
+        Public solution
+    """
+    new_df = df.copy()
+    change_region_dict = {
+        'Адыгея': 'Республика Адыгея',
+        'Татарстан': 'Республика Татарстан',
+        'Мордовия': 'Республика Мордовия',
+        'Коми': 'Республика Коми',
+        'Карелия': 'Республика Карелия',
+        'Башкортостан': 'Республика Башкортостан',
+        'Ханты-Мансийский АО': 'Ханты-Мансийский автономный округ - Югра',
+        'Удмуртия': 'Удмуртская республика'
+    }
+
+    change_city_dict = {
+        'Иркутский район, Маркова рп, Зеленый Берег мкр': 'Маркова',
+        'Иркутский район, Маркова рп, Стрижи кв-л': 'Маркова',
+        'город Светлый': 'Светлый',
+        'Орел': 'Орёл'
+    }
+
+    def custom_func(region, city):
+        if (region == 'Ленинградская область') and (city == 'Санкт-Петербург'):
+            return 'Санкт-Петербург'
+        if (region == 'Тюменская область') and (city == 'Нижневартовск'):
+            return 'Ханты-Мансийский автономный округ - Югра'
+        if (region == 'Тюменская область') and (city == 'Сургут'):
+            return 'Ханты-Мансийский автономный округ - Югра'
+        return region
+
+    for err, new in zip(list(change_city_dict.keys()), list(change_city_dict.values())):
+        new_df.replace(err, new, inplace=True)
+
+    for err, new in zip(list(change_region_dict.keys()), list(change_region_dict.values())):
+        new_df.replace(err, new, inplace=True)
+        new_df['region'] = new_df.apply(lambda x: custom_func(x['region'], x['city']), axis=1)
+
+    return new_df
+
+
+def clean_floor_num(data):
     """
     Author:
         Public solution
