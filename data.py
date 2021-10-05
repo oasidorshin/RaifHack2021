@@ -281,3 +281,29 @@ def clean_floor_num(data):
         .mask(data['floor'] == '1.2', 1) \
         .astype(float)
     return data
+
+
+def postprocessing(subm, target, coef1=0.94, coef2=0.94, expm1=False):
+    """
+    Postprocess submission
+
+    Args:
+        subm: submission df
+        target: target column
+        coef1: coefficient to scale everything
+        coef2: coefficient to scale targets >= 200000
+        expm1: whether to expm1 target or not
+
+    Returns:
+        subm: postprocessed submission df
+
+    Author:
+        Oleg
+    """
+    if expm1:
+        subm[target] = np.expm1(subm[target])
+
+    subm[target] = subm[target] * coef1
+    subm.loc[subm[target] >= 200000, target] = subm.loc[subm[target] >= 200000, target] * coef2
+
+    return subm
