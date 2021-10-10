@@ -133,7 +133,7 @@ def cluster(train, test, eps):
     Author:
         RedPowerful
     """
-    model = DBSCAN(eps=eps, min_samples=2)
+    model = DBSCAN(eps=eps, min_samples=2, n_jobs=-1)
 
     train['df_type'] = 'train'
     test['df_type'] = 'test'
