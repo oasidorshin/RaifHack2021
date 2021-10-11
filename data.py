@@ -94,7 +94,7 @@ def preprocess_data(train, test, **kwargs):
     if 'only_test_cities' in kwargs:
         train = get_cities_in_test(train, test)
 
-    if 'encode_categorical' in kwargs:
+    if 'encode_cat' in kwargs:
         # Label encoding for categorical columns
         for column in cat_columns:
             le = LabelEncoder()
@@ -107,7 +107,7 @@ def preprocess_data(train, test, **kwargs):
         test[column] = test[column].astype(float)
 
     # Type check for everything
-    if 'encode_categorical' in kwargs:
+    if 'encode_cat' in kwargs:
         for column in cat_columns:
             assert train[column].dtype == 'int', (column, train[column].dtype)
             assert test[column].dtype == 'int', (column, test[column].dtype)
